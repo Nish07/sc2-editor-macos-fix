@@ -1,5 +1,11 @@
 # sc2-editor-macos-fix
 
+![Version](https://img.shields.io/badge/Version-1.1-blue?style=flat)
+![SC2 Build](https://img.shields.io/badge/SC2%20Build-5.0.16%20(97563)-blue?style=flat)
+![macOS](https://img.shields.io/badge/macOS-26.5-blue?style=flat)
+![Platform](https://img.shields.io/badge/Platform-Apple%20Silicon-blue?style=flat)
+![License](https://img.shields.io/badge/License-MIT-blue?style=flat)
+
 Makes the **StarCraft II Editor** launch on Apple Silicon / modern macOS, instead of dying with:
 
 > StarCraft II has encountered an error while initializing your videocard.
