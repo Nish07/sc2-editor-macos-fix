@@ -67,6 +67,12 @@ Log: `~/Library/Logs/sc2ed-fix.log`
   releases regardless of what Blizzard does.
 - Unofficial and unaffiliated with Blizzard Entertainment. Provided as-is, with no warranty.
 
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). `master` is protected, so
+changes land through pull requests. Fixes for newer SC2 builds and reports from other Macs are
+especially useful.
+
 ## Licensing and ownership
 
 StarCraft II and the StarCraft II Editor are the property of Blizzard Entertainment, Inc.
