@@ -14,6 +14,10 @@ LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchS
 
 fail() { echo "error: $1" >&2; exit 1; }
 
+# Single source of truth for the version: the constant in the shim source.
+VERSION="$(sed -n 's/.*SC2ED_FIX_VERSION "\([^"]*\)".*/\1/p' src/sc2ed_fix.m)"
+[ -n "$VERSION" ] || fail "could not read SC2ED_FIX_VERSION from src/sc2ed_fix.m"
+
 # Whether to make this app the default for .SC2Map. Unset means ask.
 ASSOCIATE=""
 for arg in "$@"; do
@@ -141,7 +145,7 @@ plset() {
 plset CFBundleIdentifier         string "com.sc2editorfix.launcher"
 plset CFBundleName               string "StarCraft II Editor (Fixed)"
 plset CFBundleDisplayName        string "StarCraft II Editor (Fixed)"
-plset CFBundleShortVersionString string "1.2"
+plset CFBundleShortVersionString string "$VERSION"
 
 [ -n "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PL" 2>/dev/null)" ] ||
   fail "could not set CFBundleIdentifier on $APP"
