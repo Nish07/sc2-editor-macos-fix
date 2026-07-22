@@ -16,8 +16,9 @@ Verified on **SC2 5.0.16.97563**, **macOS 26.5**, **M3 Pro**
 
 ## What it does
 
-A shim loaded into the Editor with `DYLD_INSERT_LIBRARIES`. It changes **three bytes in the
-Editor's memory** at startup, then does nothing else.
+A shim loaded into the Editor with `DYLD_INSERT_LIBRARIES`. It changes **seven bytes in the
+Editor's memory** at startup — three to let it launch, and four to redirect one call so object
+previews render. Nothing else in the Editor is altered.
 
 - Never modifies your StarCraft II installation — no file is written or replaced.
 - Affects only the Editor. Nothing to do with the game client, Battle.net, multiplayer, or
