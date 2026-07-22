@@ -40,10 +40,12 @@ The version lives in one place: `SC2ED_FIX_VERSION` in `src/sc2ed_fix.m`.
 
 1. Bump that constant
 2. Merge to `master`
-3. Tag it: `git tag -a v1.4 -m "..." && git push origin v1.4`
 
-`install.sh` reads the constant when building the app bundle, the shim logs it at startup, and the
-README badge follows the newest tag on GitHub. Nothing else needs touching.
+That is the whole process. A workflow tags the merge commit automatically when the constant
+changes, `install.sh` reads it when building the app bundle, the shim logs it at startup, and the
+README badge follows the newest tag. Nothing else needs touching.
+
+If you ever need to tag by hand, the workflow no-ops when the tag already exists.
 
 ## Before you open a PR
 
