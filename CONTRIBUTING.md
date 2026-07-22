@@ -27,11 +27,23 @@ They then run on every commit, and you can run them over everything with
 Alongside the usual hygiene checks (trailing whitespace, line endings, private keys, large files)
 and `shellcheck`, three are specific to this repo:
 
-- **Version is consistent** — `src/sc2ed_fix.m` holds the version; the README badge must match it
-  and `install.sh` must derive it rather than hardcode it. This has drifted twice.
+- **Version is consistent** — `src/sc2ed_fix.m` holds the version and is the only place to edit
+  it. `install.sh`, the runtime log line and the README badge all derive from it, and this hook
+  rejects any hardcoded copy creeping back in. It drifted twice before that was true.
 - **Shim compiles with no warnings** — the repo ships source only, so a build failure breaks
   every user.
 - **No compiled binaries committed** — people must be able to read what they build and run.
+
+## Releasing
+
+The version lives in one place: `SC2ED_FIX_VERSION` in `src/sc2ed_fix.m`.
+
+1. Bump that constant
+2. Merge to `master`
+3. Tag it: `git tag -a v1.4 -m "..." && git push origin v1.4`
+
+`install.sh` reads the constant when building the app bundle, the shim logs it at startup, and the
+README badge follows the newest tag on GitHub. Nothing else needs touching.
 
 ## Before you open a PR
 
