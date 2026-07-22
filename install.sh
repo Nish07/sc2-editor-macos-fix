@@ -14,6 +14,21 @@ LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchS
 
 fail() { echo "error: $1" >&2; exit 1; }
 
+# Whether to make this app the default for .SC2Map. Unset means ask.
+ASSOCIATE=""
+for arg in "$@"; do
+  case "$arg" in
+    --associate)    ASSOCIATE=yes ;;
+    --no-associate) ASSOCIATE=no ;;
+    -h|--help)
+      echo "usage: ./install.sh [--associate | --no-associate]"
+      echo "  --associate     make the fixed Editor the default for .SC2Map files"
+      echo "  --no-associate  leave file associations alone"
+      echo "  (with neither, you are asked; non-interactive runs leave them alone)"
+      exit 0 ;;
+  esac
+done
+
 # --- prerequisites -------------------------------------------------------
 [ -f "$EDITOR" ] || fail "SC2 Editor not found at:
   $EDITOR
@@ -150,16 +165,29 @@ done
 touch "$APP"
 [ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$APP" >/dev/null 2>&1 || true
 
-# Make this app the default for SC2 documents, so double-clicking a .SC2Map
-# opens the fixed Editor instead of Blizzard's (which fails with the videocard
-# error). Reversible any time via Finder: Get Info -> Open with -> Change All.
-osascript -l JavaScript <<'JXA' >/dev/null 2>&1 || true
+# Optionally make this app the default for SC2 documents, so double-clicking a
+# .SC2Map opens the fixed Editor instead of Blizzard's (which fails with the
+# videocard error). This changes a system-wide file association, so ask first.
+if [ -z "$ASSOCIATE" ]; then
+  if [ -t 0 ]; then
+    echo
+    printf '  Open .SC2Map files with the fixed Editor when you double-click them? [Y/n] '
+    read -r reply
+    case "$reply" in [Nn]*) ASSOCIATE=no ;; *) ASSOCIATE=yes ;; esac
+  else
+    ASSOCIATE=no   # non-interactive: never change associations silently
+  fi
+fi
+
+if [ "$ASSOCIATE" = yes ]; then
+  osascript -l JavaScript <<'JXA' >/dev/null 2>&1 || true
 ObjC.import("CoreServices");
 var app = "com.sc2editorfix.launcher";
 ["com.blizzard.starcraft2.map", "com.blizzard.starcraft2.data"].forEach(function (uti) {
   $.LSSetDefaultRoleHandlerForContentType($(uti), 0xFFFFFFFF, $(app));
 });
 JXA
+fi
 
 cat <<DONE
 
@@ -176,11 +204,16 @@ cat <<DONE
   │                                            │
   └────────────────────────────────────────────┘
 
-  .SC2Map files now open with the fixed Editor when you double-click them.
-  To undo that: right-click a map -> Get Info -> Open with -> pick another
-  app -> Change All.
-
 DONE
+if [ "$ASSOCIATE" = yes ]; then
+  echo "  .SC2Map files now open with the fixed Editor when you double-click them."
+  echo "  To undo: right-click a map -> Get Info -> Open with -> Change All."
+else
+  echo "  File associations were left alone. To open a map with the fixed Editor,"
+  echo "  right-click it -> Open With -> StarCraft II Editor (Fixed)."
+  echo "  To make it the default later:  ./install.sh --associate"
+fi
+echo
 echo "  App:          $APP"
 echo "  Installed to: $DEST"
 echo "  Log:          ~/Library/Logs/sc2ed-fix.log"
