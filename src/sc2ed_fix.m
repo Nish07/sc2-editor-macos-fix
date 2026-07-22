@@ -11,7 +11,7 @@
 #include <mach-o/loader.h>
 #include <sys/sysctl.h>
 
-#define SC2ED_FIX_VERSION "1.1"
+#define SC2ED_FIX_VERSION "1.2"
 
 /* ================= byte patches ================= */
 
@@ -228,9 +228,19 @@ static unsigned char *find_site(fix_t *f, unsigned char *ts, size_t tl, int allo
     return hit;
 }
 
-/* Redirect a call's rel32 at a known site to our hook. */
-static int install_hook(hook_t *h) {
+/*
+ * Redirect a call's rel32 at a known site to our hook.
+ *
+ * The site is a hardcoded address, so it MUST be bounds-checked against this
+ * process's __text before being read. Without that check, loading into any
+ * other binary (DYLD_INSERT_LIBRARIES is inherited by child processes) reads
+ * an unmapped address and segfaults -- which is exactly what happened to
+ * BlizzardBrowser, killing the in-editor Battle.net login.
+ */
+static int install_hook(hook_t *h, unsigned char *ts, size_t tl) {
     unsigned char *p = (unsigned char *)h->site;
+    if (!ts) return 0;
+    if (p < ts || p + h->siglen > ts + tl) return 0;
     if (memcmp(p, h->sig, h->siglen)) return 0;
     int32_t rel = (int32_t)((intptr_t)h->hook - (intptr_t)(h->site + 5));
     if (write_bytes(p + 1, (const unsigned char *)&rel, 4))
@@ -265,7 +275,7 @@ static void *worker(void *_unused) {
         for (size_t k = 0; k < NHOOKS; k++) {
             hook_t *h = &HOOKS[k];
             if (h->done) continue;
-            if (!install_hook(h)) continue;
+            if (!install_hook(h, ts, tl)) continue;
             h->done = 1;
             remaining--;
         }
@@ -314,8 +324,26 @@ static void log_environment(void) {
     }
 }
 
+/*
+ * Only ever touch the StarCraft II Editor itself.
+ *
+ * DYLD_INSERT_LIBRARIES is inherited by child processes, so without this the
+ * shim also loads into helpers such as BlizzardBrowser (the in-editor
+ * Battle.net login window) where none of our addresses mean anything.
+ */
+static int is_the_editor(void) {
+    @autoreleasepool {
+        @try {
+            NSString *bid = [[NSBundle mainBundle] bundleIdentifier];
+            if (bid && [bid isEqualToString:@"com.blizzard.starcraft2.editor"]) return 1;
+        } @catch (NSException *ex) { /* fall through */ }
+    }
+    return 0;
+}
+
 __attribute__((constructor))
 static void sc2ed_fix_init(void) {
+    if (!is_the_editor()) return;   /* a helper process -- do nothing at all */
     logf_("sc2ed_fix: loaded (pid %d, %zu patch(es), %zu hook(s))",
           getpid(), (size_t)NFIXES, (size_t)NHOOKS);
     log_environment();
