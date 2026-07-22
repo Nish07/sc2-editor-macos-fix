@@ -1,0 +1,55 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+    # Standard checks
+  - id: check-executables-have-shebangs
+  - id: check-yaml
+  - id: end-of-file-fixer
+  - id: trailing-whitespace
+    args: [--markdown-linebreak-ext=md]
+
+    # Cross platform
+  - id: check-case-conflict
+  - id: destroyed-symlinks
+  - id: mixed-line-ending
+    args: [--fix=lf]
+
+    # Security
+  - id: detect-private-key
+
+    # Git
+  - id: check-added-large-files
+  - id: check-merge-conflict
+  - id: forbid-submodules
+
+- repo: https://github.com/shellcheck-py/shellcheck-py
+  rev: v0.10.0.1
+  hooks:
+  - id: shellcheck
+
+- repo: local
+  hooks:
+    # The version has drifted twice: once in the README badge, once when
+    # install.sh hardcoded it. src/sc2ed_fix.m is the source of truth.
+  - id: version-consistency
+    name: Version is consistent across the repo
+    entry: scripts/check-version.sh
+    language: script
+    pass_filenames: false
+
+    # A fix that does not compile is worse than no fix, and this repo ships
+    # source only -- users build it themselves.
+  - id: builds-clean
+    name: Shim compiles with no warnings
+    entry: scripts/check-build.sh
+    language: script
+    pass_filenames: false
+    files: \.(m|sh)$
+
+    # Never commit a built dylib. Users must be able to read what they run.
+  - id: no-binaries
+    name: No compiled binaries committed
+    entry: scripts/check-no-binaries.sh
+    language: script
+    pass_filenames: false

@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/sh
 # Remove the fix. The SC2 installation was never modified, so this is all
 # there is to undo.
 DEST="$HOME/Library/Application Support/SC2EditorFix"
