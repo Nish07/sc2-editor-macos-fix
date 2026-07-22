@@ -176,9 +176,9 @@ cat <<DONE
   │                                            │
   └────────────────────────────────────────────┘
 
-  To open .SC2Map files with the fixed Editor, right-click a map ->
-  Open With -> StarCraft II Editor (Fixed). Tick "Always Open With"
-  to make it the default.
+  .SC2Map files now open with the fixed Editor when you double-click them.
+  To undo that: right-click a map -> Get Info -> Open with -> pick another
+  app -> Change All.
 
 DONE
 echo "  App:          $APP"
