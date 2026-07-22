@@ -1,0 +1,46 @@
+name: Tag on version bump
+
+# The version lives in one place: SC2ED_FIX_VERSION in src/sc2ed_fix.m.
+# When a change to it lands on master, tag that commit automatically so the
+# tag can never lag the code -- which is exactly what happened with v1.3.
+on:
+  push:
+    branches: [master]
+    paths: ['src/sc2ed_fix.m']
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Read the version constant
+      id: version
+      run: |
+        V=$(sed -n 's/.*SC2ED_FIX_VERSION "\([^"]*\)".*/\1/p' src/sc2ed_fix.m)
+        if [ -z "$V" ]; then
+          echo "could not read SC2ED_FIX_VERSION from src/sc2ed_fix.m" >&2
+          exit 1
+        fi
+        echo "value=$V" >> "$GITHUB_OUTPUT"
+        echo "found version $V"
+
+    - name: Tag it, if that tag does not exist yet
+      env:
+        VERSION: ${{ steps.version.outputs.value }}
+      run: |
+        TAG="v$VERSION"
+        if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+          echo "$TAG already exists; nothing to do"
+          exit 0
+        fi
+        git config user.name  "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git tag -a "$TAG" -m "$TAG"
+        git push origin "$TAG"
+        echo "tagged $TAG at $(git rev-parse --short HEAD)"
