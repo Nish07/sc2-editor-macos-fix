@@ -11,7 +11,7 @@
 #include <mach-o/loader.h>
 #include <sys/sysctl.h>
 
-#define SC2ED_FIX_VERSION "1.2"
+#define SC2ED_FIX_VERSION "1.3"
 
 /* ================= byte patches ================= */
 
