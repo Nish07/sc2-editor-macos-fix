@@ -12,8 +12,7 @@ Makes the **StarCraft II Editor** launch on Apple Silicon / modern macOS, instea
 With the fix, the Editor opens normally — Terrain window, Help, Editor Tips — on its own
 **OpenGL3** renderer.
 
-Verified on **SC2 5.0.16.97563**, **macOS 26.5**, **M3 Pro** (the Editor is an x86_64 binary
-running under Rosetta).
+Verified on **SC2 5.0.16.97563**, **macOS 26.5**, **M3 Pro** 
 
 ## What it does
 
