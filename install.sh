@@ -1,21 +1,38 @@
 #!/bin/zsh
 # Build and install the fix, then create a ~/sc2editor shortcut and a
-# double-clickable app you can keep in the Dock.
+# double-clickable app you can keep in the Dock and open maps with.
 # Nothing is installed system-wide and nothing runs at login.
 set -e
 cd "$(dirname "$0")"
 
 DEST="$HOME/Library/Application Support/SC2EditorFix"
-EDITOR="/Applications/StarCraft II/StarCraft II Editor.app/Contents/MacOS/StarCraft II Editor"
-SRCAPP="/Applications/StarCraft II/StarCraft II Editor.app"
+SC2="/Applications/StarCraft II"
+EDITOR="$SC2/StarCraft II Editor.app/Contents/MacOS/StarCraft II Editor"
+SRCAPP="$SC2/StarCraft II Editor.app"
 APPNAME="StarCraft II Editor (Fixed).app"
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
 fail() { echo "error: $1" >&2; exit 1; }
+
+# Whether to make this app the default for .SC2Map. Unset means ask.
+ASSOCIATE=""
+for arg in "$@"; do
+  case "$arg" in
+    --associate)    ASSOCIATE=yes ;;
+    --no-associate) ASSOCIATE=no ;;
+    -h|--help)
+      echo "usage: ./install.sh [--associate | --no-associate]"
+      echo "  --associate     make the fixed Editor the default for .SC2Map files"
+      echo "  --no-associate  leave file associations alone"
+      echo "  (with neither, you are asked; non-interactive runs leave them alone)"
+      exit 0 ;;
+  esac
+done
 
 # --- prerequisites -------------------------------------------------------
 [ -f "$EDITOR" ] || fail "SC2 Editor not found at:
   $EDITOR
-If StarCraft II is installed somewhere else, edit the EDITOR= lines in this script."
+If StarCraft II is installed somewhere else, edit the paths at the top of this script."
 
 command -v clang >/dev/null 2>&1 || fail "clang not found.
 Install the Xcode Command Line Tools:  xcode-select --install"
@@ -54,57 +71,123 @@ chmod +x "$DEST/launch-sc2-editor.command"
 
 ln -sfn "$DEST/launch-sc2-editor.command" "$HOME/sc2editor"
 
-# --- Dock-able app -------------------------------------------------------
-# A tiny wrapper bundle that launches the real Editor with the shim injected.
-# Blizzard's own .app is never modified: patching its Info.plist would break
-# its code signature and be reverted by the next Battle.net update.
+# --- Dock-able app that can also open maps -------------------------------
+# Built with osacompile rather than as a shell script: only a real app can
+# receive the Apple Event Finder sends when you open a document with it, which
+# is what lets "Open With" and double-clicking a .SC2Map work.
+#
+# Blizzard's own .app is never modified. Adding LSEnvironment to its Info.plist
+# would make its icon work directly, but that breaks its code signature and is
+# reverted by the next Battle.net update.
 APPDIR="/Applications"
 [ -w "$APPDIR" ] || APPDIR="$HOME/Applications"
 mkdir -p "$APPDIR"
 APP="$APPDIR/$APPNAME"
 
-rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+SRC="$(mktemp -t sc2edwrap).applescript"
+cat > "$SRC" <<'APPLESCRIPT'
+-- StarCraft II Editor (Fixed)
+-- Launches the real Editor with the fix shim injected, and forwards any
+-- document you open to it.
 
-cat > "$APP/Contents/MacOS/launch" <<'WRAP'
-#!/bin/sh
-DYLIB="$HOME/Library/Application Support/SC2EditorFix/sc2ed_fix.dylib"
-EDITOR="/Applications/StarCraft II/StarCraft II Editor.app/Contents/MacOS/StarCraft II Editor"
-if [ ! -f "$DYLIB" ] || [ ! -f "$EDITOR" ]; then
-  osascript -e 'display alert "StarCraft II Editor (Fixed)" message "The fix or the Editor is missing. Re-run install.sh from the sc2-editor-macos-fix repo."'
-  exit 1
-fi
-cd "$(dirname "$EDITOR")"
-exec env DYLD_INSERT_LIBRARIES="$DYLIB" "$EDITOR"
-WRAP
-chmod +x "$APP/Contents/MacOS/launch"
+on run
+	launchEditor("")
+end run
+
+on open theFiles
+	repeat with f in theFiles
+		launchEditor(POSIX path of (f as alias))
+	end repeat
+end open
+
+on launchEditor(mapPath)
+	set dylib to (POSIX path of (path to home folder)) & "Library/Application Support/SC2EditorFix/sc2ed_fix.dylib"
+	set editorBin to "/Applications/StarCraft II/StarCraft II Editor.app/Contents/MacOS/StarCraft II Editor"
+
+	tell application "System Events"
+		set alreadyRunning to (exists (processes where name is "StarCraft II Editor"))
+	end tell
+
+	-- Reuse a running (already patched) Editor rather than starting a second one.
+	if alreadyRunning and mapPath is not "" then
+		try
+			tell application id "com.blizzard.starcraft2.editor" to open (POSIX file mapPath)
+			return
+		end try
+	end if
+
+	set cmd to "DYLD_INSERT_LIBRARIES=" & quoted form of dylib & " " & quoted form of editorBin
+	if mapPath is not "" then set cmd to cmd & " " & quoted form of mapPath
+	do shell script cmd & " > /dev/null 2>&1 &"
+end launchEditor
+APPLESCRIPT
+
+rm -rf "$APP"
+osacompile -o "$APP" "$SRC" >/dev/null 2>&1 || fail "osacompile failed"
+rm -f "$SRC"
 
 [ -f "$SRCAPP/Contents/Resources/Icon.icns" ] &&
-  cp -f "$SRCAPP/Contents/Resources/Icon.icns" "$APP/Contents/Resources/Icon.icns"
+  cp -f "$SRCAPP/Contents/Resources/Icon.icns" "$APP/Contents/Resources/applet.icns"
 
-cat > "$APP/Contents/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleName</key>            <string>StarCraft II Editor (Fixed)</string>
-    <key>CFBundleDisplayName</key>     <string>StarCraft II Editor (Fixed)</string>
-    <key>CFBundleExecutable</key>      <string>launch</string>
-    <key>CFBundleIconFile</key>        <string>Icon</string>
-    <key>CFBundleIdentifier</key>      <string>com.sc2editorfix.launcher</string>
-    <key>CFBundlePackageType</key>     <string>APPL</string>
-    <key>CFBundleShortVersionString</key> <string>1.0</string>
-    <key>CFBundleVersion</key>         <string>1</string>
-    <key>NSHighResolutionCapable</key> <true/>
-</dict>
-</plist>
-PLIST
-printf 'APPL????' > "$APP/Contents/PkgInfo"
+PL="$APP/Contents/Info.plist"
+pb() { /usr/libexec/PlistBuddy -c "$1" "$PL" >/dev/null 2>&1 || true; }
+# Set if the key exists, otherwise Add. osacompile does not emit
+# CFBundleIdentifier at all, and without one Launch Services cannot make this
+# app a default handler for .SC2Map.
+plset() {
+  /usr/libexec/PlistBuddy -c "Set :$1 $3" "$PL" >/dev/null 2>&1 ||
+  /usr/libexec/PlistBuddy -c "Add :$1 $2 $3" "$PL" >/dev/null 2>&1 || true
+}
+plset CFBundleIdentifier         string "com.sc2editorfix.launcher"
+plset CFBundleName               string "StarCraft II Editor (Fixed)"
+plset CFBundleDisplayName        string "StarCraft II Editor (Fixed)"
+plset CFBundleShortVersionString string "1.2"
 
-# Nudge LaunchServices so the icon shows immediately.
+[ -n "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PL" 2>/dev/null)" ] ||
+  fail "could not set CFBundleIdentifier on $APP"
+
+# Declare the same document types the Editor claims, so Finder offers this app
+# under "Open With" instead of burying it behind "All Applications".
+pb "Delete :CFBundleDocumentTypes"
+pb "Add :CFBundleDocumentTypes array"
+i=0
+for ext in SC2Map SC2Components SC2Mod SC2Campaign SC2Lighting SC2Layout; do
+  pb "Add :CFBundleDocumentTypes:$i dict"
+  pb "Add :CFBundleDocumentTypes:$i:CFBundleTypeName string StarCraft II $ext"
+  pb "Add :CFBundleDocumentTypes:$i:CFBundleTypeExtensions array"
+  pb "Add :CFBundleDocumentTypes:$i:CFBundleTypeExtensions:0 string $ext"
+  pb "Add :CFBundleDocumentTypes:$i:CFBundleTypeRole string Editor"
+  pb "Add :CFBundleDocumentTypes:$i:LSHandlerRank string Alternate"
+  [ "$ext" = "SC2Mod" ] && pb "Add :CFBundleDocumentTypes:$i:LSTypeIsPackage bool true"
+  i=$((i+1))
+done
+
 touch "$APP"
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
-  -f "$APP" >/dev/null 2>&1 || true
+[ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$APP" >/dev/null 2>&1 || true
+
+# Optionally make this app the default for SC2 documents, so double-clicking a
+# .SC2Map opens the fixed Editor instead of Blizzard's (which fails with the
+# videocard error). This changes a system-wide file association, so ask first.
+if [ -z "$ASSOCIATE" ]; then
+  if [ -t 0 ]; then
+    echo
+    printf '  Open .SC2Map files with the fixed Editor when you double-click them? [Y/n] '
+    read -r reply
+    case "$reply" in [Nn]*) ASSOCIATE=no ;; *) ASSOCIATE=yes ;; esac
+  else
+    ASSOCIATE=no   # non-interactive: never change associations silently
+  fi
+fi
+
+if [ "$ASSOCIATE" = yes ]; then
+  osascript -l JavaScript <<'JXA' >/dev/null 2>&1 || true
+ObjC.import("CoreServices");
+var app = "com.sc2editorfix.launcher";
+["com.blizzard.starcraft2.map", "com.blizzard.starcraft2.data"].forEach(function (uti) {
+  $.LSSetDefaultRoleHandlerForContentType($(uti), 0xFFFFFFFF, $(app));
+});
+JXA
+fi
 
 cat <<DONE
 
@@ -122,6 +205,15 @@ cat <<DONE
   └────────────────────────────────────────────┘
 
 DONE
+if [ "$ASSOCIATE" = yes ]; then
+  echo "  .SC2Map files now open with the fixed Editor when you double-click them."
+  echo "  To undo: right-click a map -> Get Info -> Open with -> Change All."
+else
+  echo "  File associations were left alone. To open a map with the fixed Editor,"
+  echo "  right-click it -> Open With -> StarCraft II Editor (Fixed)."
+  echo "  To make it the default later:  ./install.sh --associate"
+fi
+echo
 echo "  App:          $APP"
 echo "  Installed to: $DEST"
 echo "  Log:          ~/Library/Logs/sc2ed-fix.log"
