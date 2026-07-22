@@ -9,6 +9,9 @@
 #include <sys/mman.h>
 #include <mach-o/dyld.h>
 #include <mach-o/loader.h>
+#include <sys/sysctl.h>
+
+#define SC2ED_FIX_VERSION "1.1"
 
 /* ================= byte patches ================= */
 
@@ -279,10 +282,43 @@ static void *worker(void *_unused) {
     return NULL;
 }
 
+/*
+ * Log the environment at startup. Signatures are build-specific, so a bug
+ * report is only actionable if it says which SC2 build and macOS version it
+ * came from -- this makes a pasted log self-sufficient.
+ */
+static void log_environment(void) {
+    @autoreleasepool {
+        const char *sc2 = "unknown", *os = "unknown";
+        @try {
+            NSDictionary *info = [[NSBundle mainBundle] infoDictionary];
+            NSString *v = [info objectForKey:@"CFBundleShortVersionString"];
+            if (!v) v = [info objectForKey:@"CFBundleVersion"];
+            if (v) sc2 = [v UTF8String];
+            NSString *o = [[NSProcessInfo processInfo] operatingSystemVersionString];
+            if (o) os = [o UTF8String];
+        } @catch (NSException *ex) { /* keep the defaults */ }
+
+        int translated = 0; size_t sz = sizeof translated;
+        if (sysctlbyname("sysctl.proc_translated", &translated, &sz, NULL, 0) != 0)
+            translated = 0;
+
+        logf_("sc2ed_fix: v%s | SC2 %s | macOS %s | %s%s",
+              SC2ED_FIX_VERSION, sc2, os,
+#if defined(__x86_64__)
+              "x86_64",
+#else
+              "arm64",
+#endif
+              translated ? " (Rosetta)" : "");
+    }
+}
+
 __attribute__((constructor))
 static void sc2ed_fix_init(void) {
     logf_("sc2ed_fix: loaded (pid %d, %zu patch(es), %zu hook(s))",
           getpid(), (size_t)NFIXES, (size_t)NHOOKS);
+    log_environment();
     pthread_t t;
     if (pthread_create(&t, NULL, worker, NULL) == 0) pthread_detach(t);
 }
