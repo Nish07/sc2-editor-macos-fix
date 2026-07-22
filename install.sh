@@ -1,11 +1,14 @@
 #!/bin/zsh
-# Build and install the fix, then create a ~/sc2editor shortcut.
+# Build and install the fix, then create a ~/sc2editor shortcut and a
+# double-clickable app you can keep in the Dock.
 # Nothing is installed system-wide and nothing runs at login.
 set -e
 cd "$(dirname "$0")"
 
 DEST="$HOME/Library/Application Support/SC2EditorFix"
 EDITOR="/Applications/StarCraft II/StarCraft II Editor.app/Contents/MacOS/StarCraft II Editor"
+SRCAPP="/Applications/StarCraft II/StarCraft II Editor.app"
+APPNAME="StarCraft II Editor (Fixed).app"
 
 fail() { echo "error: $1" >&2; exit 1; }
 
@@ -51,7 +54,59 @@ chmod +x "$DEST/launch-sc2-editor.command"
 
 ln -sfn "$DEST/launch-sc2-editor.command" "$HOME/sc2editor"
 
-cat <<'DONE'
+# --- Dock-able app -------------------------------------------------------
+# A tiny wrapper bundle that launches the real Editor with the shim injected.
+# Blizzard's own .app is never modified: patching its Info.plist would break
+# its code signature and be reverted by the next Battle.net update.
+APPDIR="/Applications"
+[ -w "$APPDIR" ] || APPDIR="$HOME/Applications"
+mkdir -p "$APPDIR"
+APP="$APPDIR/$APPNAME"
+
+rm -rf "$APP"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+
+cat > "$APP/Contents/MacOS/launch" <<'WRAP'
+#!/bin/sh
+DYLIB="$HOME/Library/Application Support/SC2EditorFix/sc2ed_fix.dylib"
+EDITOR="/Applications/StarCraft II/StarCraft II Editor.app/Contents/MacOS/StarCraft II Editor"
+if [ ! -f "$DYLIB" ] || [ ! -f "$EDITOR" ]; then
+  osascript -e 'display alert "StarCraft II Editor (Fixed)" message "The fix or the Editor is missing. Re-run install.sh from the sc2-editor-macos-fix repo."'
+  exit 1
+fi
+cd "$(dirname "$EDITOR")"
+exec env DYLD_INSERT_LIBRARIES="$DYLIB" "$EDITOR"
+WRAP
+chmod +x "$APP/Contents/MacOS/launch"
+
+[ -f "$SRCAPP/Contents/Resources/Icon.icns" ] &&
+  cp -f "$SRCAPP/Contents/Resources/Icon.icns" "$APP/Contents/Resources/Icon.icns"
+
+cat > "$APP/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>            <string>StarCraft II Editor (Fixed)</string>
+    <key>CFBundleDisplayName</key>     <string>StarCraft II Editor (Fixed)</string>
+    <key>CFBundleExecutable</key>      <string>launch</string>
+    <key>CFBundleIconFile</key>        <string>Icon</string>
+    <key>CFBundleIdentifier</key>      <string>com.sc2editorfix.launcher</string>
+    <key>CFBundlePackageType</key>     <string>APPL</string>
+    <key>CFBundleShortVersionString</key> <string>1.0</string>
+    <key>CFBundleVersion</key>         <string>1</string>
+    <key>NSHighResolutionCapable</key> <true/>
+</dict>
+</plist>
+PLIST
+printf 'APPL????' > "$APP/Contents/PkgInfo"
+
+# Nudge LaunchServices so the icon shows immediately.
+touch "$APP"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+  -f "$APP" >/dev/null 2>&1 || true
+
+cat <<DONE
 
   Installed.
 
@@ -61,12 +116,13 @@ cat <<'DONE'
   │                                            │
   │       ~/sc2editor                          │
   │                                            │
+  │   ...or open "StarCraft II Editor (Fixed)" │
+  │   and drag it to your Dock.                │
+  │                                            │
   └────────────────────────────────────────────┘
 
-  Keep that terminal window open while you use the Editor —
-  closing it closes the Editor.
-
 DONE
+echo "  App:          $APP"
 echo "  Installed to: $DEST"
 echo "  Log:          ~/Library/Logs/sc2ed-fix.log"
 echo

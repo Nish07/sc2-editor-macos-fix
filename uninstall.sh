@@ -4,5 +4,7 @@
 DEST="$HOME/Library/Application Support/SC2EditorFix"
 rm -f "$HOME/sc2editor"
 rm -rf "$DEST"
-echo "removed $DEST and ~/sc2editor"
+rm -rf "/Applications/StarCraft II Editor (Fixed).app"
+rm -rf "$HOME/Applications/StarCraft II Editor (Fixed).app"
+echo "removed $DEST, ~/sc2editor and the Dock app"
 echo "(SC2 itself was never modified - nothing else to undo)"

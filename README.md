@@ -42,8 +42,13 @@ cd sc2-editor-macos-fix
 ~/sc2editor
 ```
 
-`install.sh` builds the shim, copies it to `~/Library/Application Support/SC2EditorFix/`, and
-creates a `~/sc2editor` shortcut. `./uninstall.sh` removes both — that is the entire footprint.
+`install.sh` builds the shim, copies it to `~/Library/Application Support/SC2EditorFix/`, creates
+a `~/sc2editor` shortcut, and adds a **StarCraft II Editor (Fixed)** app you can drag to your Dock.
+`./uninstall.sh` removes all of it — that is the entire footprint.
+
+Launch it whichever way you prefer: the Dock app, or `~/sc2editor` from a terminal. Note that
+Blizzard's own Editor icon still launches the *unfixed* Editor — the fix only applies when started
+through one of these. Blizzard's app bundle is deliberately left untouched.
 
 Nothing is installed system-wide and nothing runs at login. The Editor stays tied to the terminal
 window that launched it; closing that window closes the Editor.
