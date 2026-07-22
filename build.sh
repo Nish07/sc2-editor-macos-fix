@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/sh
 # Build the fix shim. Must be x86_64 -- the editor runs under Rosetta, so an
 # arm64 dylib will not load into it.
 set -e

@@ -12,6 +12,27 @@ derived on, and reports from Macs other than the one it was tested on.
 3. Make your change
 4. Open a pull request against `master`
 
+## Pre-commit hooks
+
+This repo uses [pre-commit](https://pre-commit.com). Install the hooks once:
+
+```bash
+pip install pre-commit   # or: brew install pre-commit
+pre-commit install
+```
+
+They then run on every commit, and you can run them over everything with
+`pre-commit run --all-files`.
+
+Alongside the usual hygiene checks (trailing whitespace, line endings, private keys, large files)
+and `shellcheck`, three are specific to this repo:
+
+- **Version is consistent** — `src/sc2ed_fix.m` holds the version; the README badge must match it
+  and `install.sh` must derive it rather than hardcode it. This has drifted twice.
+- **Shim compiles with no warnings** — the repo ships source only, so a build failure breaks
+  every user.
+- **No compiled binaries committed** — people must be able to read what they build and run.
+
 ## Before you open a PR
 
 - `./build.sh` completes with no warnings

@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/sh
 # Build and install the fix, then create a ~/sc2editor shortcut and a
 # double-clickable app you can keep in the Dock and open maps with.
 # Nothing is installed system-wide and nothing runs at login.
@@ -60,7 +60,7 @@ mkdir -p "$DEST"
 cp -f build/sc2ed_fix.dylib "$DEST/sc2ed_fix.dylib"
 
 cat > "$DEST/launch-sc2-editor.command" <<'LAUNCH'
-#!/bin/zsh
+#!/bin/sh
 # Launch the SC2 Editor with the fix shim injected.
 DYLIB="$HOME/Library/Application Support/SC2EditorFix/sc2ed_fix.dylib"
 EDITOR="/Applications/StarCraft II/StarCraft II Editor.app/Contents/MacOS/StarCraft II Editor"
@@ -167,7 +167,9 @@ for ext in SC2Map SC2Components SC2Mod SC2Campaign SC2Lighting SC2Layout; do
 done
 
 touch "$APP"
-[ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$APP" >/dev/null 2>&1 || true
+if [ -x "$LSREGISTER" ]; then
+  "$LSREGISTER" -f "$APP" >/dev/null 2>&1 || true
+fi
 
 # Optionally make this app the default for SC2 documents, so double-clicking a
 # .SC2Map opens the fixed Editor instead of Blizzard's (which fails with the
