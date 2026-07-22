@@ -53,8 +53,9 @@ a `~/sc2editor` shortcut, and adds a **StarCraft II Editor (Fixed)** app you can
 
 Launch it whichever way you prefer: the Dock app, or `~/sc2editor` from a terminal.
 
-To open a map with the fixed Editor, right-click it → **Open With** → **StarCraft II Editor
-(Fixed)**, and tick **Always Open With** to make it the default for `.SC2Map` files.
+`install.sh` also makes this app the default for `.SC2Map` files, so double-clicking a map opens
+the fixed Editor. To undo that, right-click a map → **Get Info** → **Open with** → choose another
+app → **Change All**.
 
 Note that Blizzard's own Editor icon still launches the *unfixed* Editor — the fix only applies
 when started through one of these. Blizzard's app bundle is deliberately left untouched.

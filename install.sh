@@ -116,10 +116,20 @@ rm -f "$SRC"
 
 PL="$APP/Contents/Info.plist"
 pb() { /usr/libexec/PlistBuddy -c "$1" "$PL" >/dev/null 2>&1 || true; }
-pb "Set :CFBundleIdentifier com.sc2editorfix.launcher"
-pb "Set :CFBundleName StarCraft II Editor (Fixed)"
-pb "Add :CFBundleDisplayName string StarCraft II Editor (Fixed)"
-pb "Set :CFBundleShortVersionString 1.2"
+# Set if the key exists, otherwise Add. osacompile does not emit
+# CFBundleIdentifier at all, and without one Launch Services cannot make this
+# app a default handler for .SC2Map.
+plset() {
+  /usr/libexec/PlistBuddy -c "Set :$1 $3" "$PL" >/dev/null 2>&1 ||
+  /usr/libexec/PlistBuddy -c "Add :$1 $2 $3" "$PL" >/dev/null 2>&1 || true
+}
+plset CFBundleIdentifier         string "com.sc2editorfix.launcher"
+plset CFBundleName               string "StarCraft II Editor (Fixed)"
+plset CFBundleDisplayName        string "StarCraft II Editor (Fixed)"
+plset CFBundleShortVersionString string "1.2"
+
+[ -n "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PL" 2>/dev/null)" ] ||
+  fail "could not set CFBundleIdentifier on $APP"
 
 # Declare the same document types the Editor claims, so Finder offers this app
 # under "Open With" instead of burying it behind "All Applications".
@@ -139,6 +149,17 @@ done
 
 touch "$APP"
 [ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$APP" >/dev/null 2>&1 || true
+
+# Make this app the default for SC2 documents, so double-clicking a .SC2Map
+# opens the fixed Editor instead of Blizzard's (which fails with the videocard
+# error). Reversible any time via Finder: Get Info -> Open with -> Change All.
+osascript -l JavaScript <<'JXA' >/dev/null 2>&1 || true
+ObjC.import("CoreServices");
+var app = "com.sc2editorfix.launcher";
+["com.blizzard.starcraft2.map", "com.blizzard.starcraft2.data"].forEach(function (uti) {
+  $.LSSetDefaultRoleHandlerForContentType($(uti), 0xFFFFFFFF, $(app));
+});
+JXA
 
 cat <<DONE
 
