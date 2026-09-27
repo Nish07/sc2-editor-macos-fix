@@ -36,7 +36,7 @@ previews render. Nothing else in the Editor is altered.
 | StarCraft II | installed at `/Applications/StarCraft II/` |
 | SC2 build | 5.0.16.97563 verified |
 
-Installed elsewhere? Edit the `EDITOR=` lines in `install.sh` first.
+Installed elsewhere? Edit the StarCraft II paths in `install.sh` first.
 
 ## Install
 
@@ -63,8 +63,8 @@ To undo it later, right-click a map → **Get Info** → **Open with** → choos
 Note that Blizzard's own Editor icon still launches the *unfixed* Editor — the fix only applies
 when started through one of these. Blizzard's app bundle is deliberately left untouched.
 
-Nothing is installed system-wide and nothing runs at login. The Editor stays tied to the terminal
-window that launched it; closing that window closes the Editor.
+Nothing is installed system-wide and nothing runs at login. Neither way keeps a terminal open —
+`~/sc2editor` returns straight away, and the Editor keeps running if you close the window.
 
 Log: `~/Library/Logs/sc2ed-fix.log`
 
