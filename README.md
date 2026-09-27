@@ -2,7 +2,7 @@
 
 ![Version](https://img.shields.io/github/v/tag/Nish07/sc2-editor-macos-fix?label=Version&color=blue&style=flat)
 ![SC2 Build](https://img.shields.io/badge/SC2%20Build-5.0.16%20(97563)-blue?style=flat)
-![macOS](https://img.shields.io/badge/macOS-26.5-blue?style=flat)
+![macOS](https://img.shields.io/badge/macOS-26.6-blue?style=flat)
 ![Platform](https://img.shields.io/badge/Platform-Apple%20Silicon-blue?style=flat)
 
 Makes the **StarCraft II Editor** launch on Apple Silicon / modern macOS, instead of dying with:
@@ -12,7 +12,7 @@ Makes the **StarCraft II Editor** launch on Apple Silicon / modern macOS, instea
 With the fix, the Editor opens normally — Terrain window, Help, Editor Tips — on its own
 **OpenGL3** renderer.
 
-Verified on **SC2 5.0.16.97563**, **macOS 26.5**, **M3 Pro**
+Verified on **SC2 5.0.16.97563**, **macOS 26.6**, **M3 Pro**
 
 ## What it does
 
@@ -30,7 +30,7 @@ previews render. Nothing else in the Editor is altered.
 | | |
 |---|---|
 | Mac | Apple Silicon (Intel untested) |
-| macOS | 26.5 verified |
+| macOS | 26.5 and 26.6 verified |
 | Rosetta 2 | `softwareupdate --install-rosetta` |
 | Xcode tools | `xcode-select --install` |
 | StarCraft II | installed at `/Applications/StarCraft II/` |
