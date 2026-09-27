@@ -57,19 +57,24 @@ rm -f "$BUILD_LOG"
 echo "done"
 
 mkdir -p "$DEST"
-cp -f build/sc2ed_fix.dylib "$DEST/sc2ed_fix.dylib"
+# Copy then rename, never overwrite in place: a running Editor has the old
+# dylib mapped, and rewriting those pages underneath it crashes it.
+cp -f build/sc2ed_fix.dylib "$DEST/.sc2ed_fix.dylib.new"
+mv -f "$DEST/.sc2ed_fix.dylib.new" "$DEST/sc2ed_fix.dylib"
 
 cat > "$DEST/launch-sc2-editor.command" <<'LAUNCH'
 #!/bin/sh
-# Launch the SC2 Editor with the fix shim injected.
+# Launch the SC2 Editor with the fix shim injected. Any arguments are opened
+# as documents (e.g. a .SC2Map).
+#
+# Launched through Launch Services with `open --env`, so the Editor belongs to
+# macOS rather than to this shell: this returns immediately, and closing the
+# terminal afterwards leaves the Editor running.
 DYLIB="$HOME/Library/Application Support/SC2EditorFix/sc2ed_fix.dylib"
-EDITOR="/Applications/StarCraft II/StarCraft II Editor.app/Contents/MacOS/StarCraft II Editor"
-[ -f "$DYLIB" ]  || { echo "missing shim: $DYLIB"; exit 1; }
-[ -f "$EDITOR" ] || { echo "missing editor: $EDITOR"; exit 1; }
-cd "$(dirname "$EDITOR")"
-echo "Launching SC2 Editor with fixes applied..."
-echo "(Closing this window also closes the editor.)"
-exec env DYLD_INSERT_LIBRARIES="$DYLIB" "$EDITOR"
+EDITORAPP="/Applications/StarCraft II/StarCraft II Editor.app"
+[ -f "$DYLIB" ]     || { echo "missing shim: $DYLIB"; exit 1; }
+[ -d "$EDITORAPP" ] || { echo "missing editor: $EDITORAPP"; exit 1; }
+exec open --env "DYLD_INSERT_LIBRARIES=$DYLIB" -a "$EDITORAPP" "$@"
 LAUNCH
 chmod +x "$DEST/launch-sc2-editor.command"
 
@@ -104,25 +109,16 @@ on open theFiles
 	end repeat
 end open
 
+-- Hands the launch to Launch Services with `open --env`, so the Editor is
+-- owned by macOS rather than by this applet or a terminal. If the Editor is
+-- already running, open just brings it forward and hands it the map.
 on launchEditor(mapPath)
 	set dylib to (POSIX path of (path to home folder)) & "Library/Application Support/SC2EditorFix/sc2ed_fix.dylib"
-	set editorBin to "/Applications/StarCraft II/StarCraft II Editor.app/Contents/MacOS/StarCraft II Editor"
+	set editorApp to "/Applications/StarCraft II/StarCraft II Editor.app"
 
-	tell application "System Events"
-		set alreadyRunning to (exists (processes where name is "StarCraft II Editor"))
-	end tell
-
-	-- Reuse a running (already patched) Editor rather than starting a second one.
-	if alreadyRunning and mapPath is not "" then
-		try
-			tell application id "com.blizzard.starcraft2.editor" to open (POSIX file mapPath)
-			return
-		end try
-	end if
-
-	set cmd to "DYLD_INSERT_LIBRARIES=" & quoted form of dylib & " " & quoted form of editorBin
+	set cmd to "open --env " & quoted form of ("DYLD_INSERT_LIBRARIES=" & dylib) & " -a " & quoted form of editorApp
 	if mapPath is not "" then set cmd to cmd & " " & quoted form of mapPath
-	do shell script cmd & " > /dev/null 2>&1 &"
+	do shell script cmd
 end launchEditor
 APPLESCRIPT
 
